@@ -1,0 +1,1 @@
+this is going to be a chip 8 emulator following the guide at https://omokute.blogspot.com/2012/06/emulation-basics-write-your-own-chip-8.html
