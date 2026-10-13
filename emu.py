@@ -32,9 +32,35 @@ def load_Rom(self, rom_path):
     binary = open(rom_path, "rb").read()
     i=0
     while i<len(binary):
-        self.memory[i+0x200] = ord(binary[i])
+        self.memory[i+0x200] = binary
         i+=1
 
 
+# defining the cycle
+def cycle(self):
+    self.opcode = self.memory[self.pc]
+    #
+    # todo: process the opcode here
+    #
+    self.vx = (self.opcode & 0x0f00) >> 8
+    self.vy = (self.opcode & 0x00f0) >> 4
 
+    #after:
+    self.pc +=2
+
+    extracted_op = self.opcode & 0xf00
+    try:
+        self.funcmap[extracted_op]() # this calls the associated method
+    except:
+        print(f"unknown instruction: {self.opcode}")
+
+
+
+    # delay timers
+    if self.delay_timer > 0:
+        self.delay_timer -= 1
+    if self.sound_timer > 0:
+        self.sound_timer -= 1
+        if self.sound_timer == 0:
+            # play a sound 
     
