@@ -36,7 +36,7 @@ def log(str):
     if logging == True:
         print(str)
 
-class cpu (pyglet.window.Window)
+class cpu (pyglet.window.Window):
 
     def initialise(self):
         self.clear()
@@ -102,7 +102,7 @@ class cpu (pyglet.window.Window)
                 print()
                 
 
-    # clear screen function
+    
     def _0zzz(self):
         extracted_op = self.opcode & 0xf0ff
         try:
@@ -120,11 +120,45 @@ class cpu (pyglet.window.Window)
         log("return from subroutine")
         self.pc = self.stack.pop()
 
-
     #jump instruction
     def _1zzz(self):
         log("jumps to address NNN")
         self.pc = self.opcode & 0x0fff
+
+    # drawing character instruction
+    def _FZ29(self):
+        log("set index to point to a character")
+        self.index = (5*(self.gpio[self.vx])) & 0xfff
+
+    def _DZZZ(self):
+        log("Draw a sprite")
+        self.gpio[0xf] = 0
+        x = self.gpio[self.vx] & 0xff
+        y = self.gpio[self.vy] & 0xff
+        height = self.opcode & 0x000f
+        row = 0
+        while row < height:
+            curr_row = self.memory[row + self.index]
+            pixel_offset = 0
+            while pixel_offset < 8:
+                loc = x + pixel_offset + ((y + row) * 64)
+                pixel_offset += 1
+                if (y + row) >= 32 or (x + pixel_offset - 1) >= 64:
+                    # ignore pixels outside the screen
+                    continue
+                mask = 1 << 8-pixel_offset
+                curr_pixel = (curr_row & mask) >> (8-pixel_offset)
+                self.display_buffer[loc] ^= curr_pixel
+                if self.display_buffer[loc] == 0:
+                    self.gpio[0xf] = 1
+                else:
+                    self.gpio[0xf] = 0
+            row += 1
+        self.should_draw = True
+
+
+
+
 
 
 
@@ -132,9 +166,11 @@ class cpu (pyglet.window.Window)
 
     # =================================== FUNCMAP ========================================
     
-    def func(self):
-        self.funcmap = { 0x000: self._0zzz,
-                        0x0e0: self._0zz0,
-                        0x0ee: self._0zze
+    def __init__(self, *args, **kwargs):
+        super(cpu, self).__init__(*args, **kwargs)
+        self.funcmap = {0x0000: self._0ZZZ,
+                        0x00e0: self._0ZZ0,
+                        0x00ee: self._0ZZE,
+                        0x1000: self._1ZZZ,
         }
 
