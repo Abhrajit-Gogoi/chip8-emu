@@ -25,3 +25,16 @@ def initialise(self):
         self.memory[i] = self.fonts[i]
         i += 1
 
+
+# load rom function
+def load_Rom(self, rom_path):
+    log(f"Loading {rom_path}...")
+    binary = open(rom_path, "rb").read()
+    i=0
+    while i<len(binary):
+        self.memory[i+0x200] = ord(binary[i])
+        i+=1
+
+
+
+    
