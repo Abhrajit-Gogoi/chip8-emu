@@ -36,7 +36,8 @@ def log(str):
     if logging == True:
         print(str)
 
-class cpu (pyglet.window.Window):
+class cpu (pyglet.window.Window): # the start of the class ===============================================
+    
 
     def initialise(self):
         self.clear()
@@ -46,6 +47,7 @@ class cpu (pyglet.window.Window):
         self.key_inputs = [0]*16
         self.opcode = 0
         self.index = 0
+        self.gpio = [0]*16
 
         self.delay_timer = 0 
         self.sound_timer = 0
@@ -62,7 +64,11 @@ class cpu (pyglet.window.Window):
             i += 1
 
 
-# load rom function
+
+
+
+
+    # load rom function
     def load_Rom(self, rom_path):
         log(f"Loading {rom_path}...")
         binary = open(rom_path, "rb").read()
@@ -70,6 +76,9 @@ class cpu (pyglet.window.Window):
         while i<len(binary):
             self.memory[i+0x200] = binary
             i+=1    
+
+
+
 
 
     # defining the cycle
@@ -90,8 +99,6 @@ class cpu (pyglet.window.Window):
         except:
             print(f"unknown instruction: {self.opcode}")
 
-
-
         # delay timers
         if self.delay_timer > 0:
             self.delay_timer -= 1
@@ -102,27 +109,36 @@ class cpu (pyglet.window.Window):
                 print()
                 
 
-    
-    def _0zzz(self):
+    # ======================================================== INSTRUCTIONS ===============================================================================
+    # =====================================================================================================================================================
+
+    # handles the 0x0ZZZ family
+    def _0ZZZ(self):
         extracted_op = self.opcode & 0xf0ff
         try:
             self.funcmap[extracted_op]()
         except:
             log(f"unknown instruction {self.opcode}")
 
-    # the clear screen function
-    def _0zz0(self):
+    # 1. the clear screen function
+    def _0ZZ0(self):
         log("clearing screen...")
         self.display_buffer = [0]*64*32
         self.should_draw = True
+        
     # return from subroutine
-    def _0zze(self):
+    def _0ZZE(self):
         log("return from subroutine")
         self.pc = self.stack.pop()
 
     #jump instruction
-    def _1zzz(self):
+    def _1ZZZ(self):
         log("jumps to address NNN")
+        self.pc = self.opcode & 0x0fff
+
+    # 0x2NNN call addr
+    def _2ZZZ(self):
+        self.stack.append(self.pc)
         self.pc = self.opcode & 0x0fff
 
     # drawing character instruction
@@ -130,6 +146,28 @@ class cpu (pyglet.window.Window):
         log("set index to point to a character")
         self.index = (5*(self.gpio[self.vx])) & 0xfff
 
+    # the 0x3xNN instruction
+    def _3ZZZ(self):
+        if self.gpio[self.vx] == (self.opcode & 0x00ff):
+            self.pc+=2
+
+    # the 0x4XNN instruction
+    def _4ZZZ(self):
+        log("Skips the next instuction if vx is not equal to NN")
+        if self.gpio[self.vx] != (self.opcode & 0x00ff)
+            self.pc += 2
+
+    # comparing instruction
+    def _5ZZZ(self):
+        log("skips if vx = vy")
+        if self.gpi[self.vx] == self.gpio[self.vy]:
+            self.pc +=2
+
+    # 0x6xNN instruction
+    
+
+
+    # THE DRAWING SPRITE INSTRUCTION
     def _DZZZ(self):
         log("Draw a sprite")
         self.gpio[0xf] = 0
@@ -157,6 +195,46 @@ class cpu (pyglet.window.Window):
         self.should_draw = True
 
 
+    # the actual draw function
+    def draw(self):
+        if not self.should_draw:
+            return
+
+        self.clear()
+    
+        # Use enumerate to get index and value simultaneously, 
+        # filtering out zero values immediately.
+        for i, val in enumerate(self.display_buffer):
+            if val:
+                # Pre-calculated integer division (//) ensures safe math
+                self.pixel.blit((i % 64) * 10, 310 - ((i // 64) * 10))
+
+        self.flip()
+        self.should_draw = False
+
+
+
+
+
+
+
+    def on_key_press(self, symbol, modifiers):
+        log(f"key pressed: {symbol}")
+        if symbol in KEY_MAP.keys():
+            self.key_inputs[KEY_MAP[symbol]] =1
+            if self.key_wait:
+                self.key_wait = False
+            else:
+                super(cpu, self).on_key_press(symbol, modifiers)
+
+
+    def on_key_release(self, symbol, modifiers):
+        log("Key released: %r" % symbol)
+        if symbol in KEY_MAP.keys():
+            self.key_inputs[KEY_MAP[symbol]] = 0
+
+
+
 
 
 
@@ -172,5 +250,9 @@ class cpu (pyglet.window.Window):
                         0x00e0: self._0ZZ0,
                         0x00ee: self._0ZZE,
                         0x1000: self._1ZZZ,
+                        0x2000: self._2ZZZ,
+                        0x3000: self._3ZZZ,
+                        0x4000: self._4ZZZ,
+                        0x5000: self._5ZZZ,
         }
 
