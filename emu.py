@@ -154,16 +154,56 @@ class cpu (pyglet.window.Window): # the start of the class =====================
     # the 0x4XNN instruction
     def _4ZZZ(self):
         log("Skips the next instuction if vx is not equal to NN")
-        if self.gpio[self.vx] != (self.opcode & 0x00ff)
+        if self.gpio[self.vx] != (self.opcode & 0x00ff):
             self.pc += 2
 
     # comparing instruction
     def _5ZZZ(self):
         log("skips if vx = vy")
-        if self.gpi[self.vx] == self.gpio[self.vy]:
+        if self.gpio[self.vx] == self.gpio[self.vy]:
             self.pc +=2
 
     # 0x6xNN instruction
+    def _6ZZZ(self):
+        self.gpio[self.vx] = self.opcode & 0x00ff
+
+    # 0x7xNN add
+    def _7ZZZ(self):
+        self.gpio[self.vx] += (self.opcode & 0x00ff)
+
+    # vx = vy 
+    def _8ZZZ(self):
+        extracted_op = self.opcode & 0xf00f
+        try:
+            self.funcmap[extracted_op]()
+        except:
+            log(f"unknown instruction {self.opcode}")
+
+    # 0x8NN0
+    def _8ZZ0(self):
+        self.gpio[self.vx] = self.gpio[self.vy]
+
+    # 8nn1
+    def _8ZZ1(self):
+        self.gpio[self.vx] = self.gpio[self.vx] | self.gpio[self.vy]
+
+    # 8nn2
+    def _8ZZ2(self):
+        self.gpio[self.vx] = self.gpio[self.vx] & self.gpio[self.vy]
+
+    # 8nn3
+    def _8ZZ3(self):
+        self.gpio[self.vx] = self.gpio[self.vx] ^ self.gpio[self.vy]
+
+    # 8nn4 
+    def _8ZZ4(self):
+        if self.gpio[self.vx]+self.gpio[self.vy] > 0xff:
+            self.gpio[0xf] = 1
+        else:
+            self.gpio[0xf] =0
+        self.gpio[self.vx] = 0xff & (self.gpio[self.vx] + self.gpio[self.vy])
+        
+    
     
 
 
@@ -211,7 +251,6 @@ class cpu (pyglet.window.Window): # the start of the class =====================
 
         self.flip()
         self.should_draw = False
-
 
 
 
