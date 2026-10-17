@@ -141,10 +141,6 @@ class cpu (pyglet.window.Window): # the start of the class =====================
         self.stack.append(self.pc)
         self.pc = self.opcode & 0x0fff
 
-    # drawing character instruction
-    def _FZ29(self):
-        log("set index to point to a character")
-        self.index = (5*(self.gpio[self.vx])) & 0xfff
 
     # the 0x3xNN instruction
     def _3ZZZ(self):
@@ -202,10 +198,55 @@ class cpu (pyglet.window.Window): # the start of the class =====================
         else:
             self.gpio[0xf] =0
         self.gpio[self.vx] = 0xff & (self.gpio[self.vx] + self.gpio[self.vy])
-        
-    
-    
 
+    # 8nn5
+    def _8ZZ5(self):
+        if self.gpio[self.vx] > self.gpio[self.vy]:
+            self.gpio[0xf] = 0
+        else:
+            self.gpio[0xf] = 1
+        self.gpio[self.vx] = 0xff & (self.gpio[self.vx] - self.gpio[self.vy])
+
+    # 8nn6
+    def _8ZZ6(self):
+        if self.gpio[self.vx] & 0x1 == 1:
+            self.gpio[0xf] =1
+        else:
+            self.gpio[self.vx] = 0
+        self.gpio[self.vx] = self.gpio[self.vx] >> 1
+
+    # 8xy7
+    def _8ZZ7(self):
+        if self.gpio[self.vy] > self.gpio[self.vx]:
+            self.gpio[0xf] = 1
+        else:
+            self.gpio[0xf] = 0
+        self.gpio[self.vx] = 0xff & (self.gpio[self.vy] - self.gpio[self.vx])
+
+    # 8xyE
+    def _8ZZE(self):
+        self.gpio[0xf] = (self.gpio[self.vx] & 0x00f0) >> 7
+        self.gpio[self.vx] = (self.gpio[self.vx] << 1) & 0xff
+
+    # 9xy0
+    def _9ZZZ(self):
+        if self.gpio[self.vx] != self.gpio[self.vy]:
+            self.pc += 2
+
+    # AZZZ
+    def _AZZZ(self):
+        self.index = self.opcode & 0x0fff
+
+    # BZZZ
+    def _BZZZ(self):
+        self.pc = (self.opcode & 0xfff) + self.gpio[self.0]
+
+    # CZZZ
+    def _CZZZ(self):
+        r = int(random.random() * 0xff)
+        self.gpio[self.vx] = r & (self.opcode & 0x00ff)
+        self.gpio[self.vx] &= 0xff
+        
 
     # THE DRAWING SPRITE INSTRUCTION
     def _DZZZ(self):
@@ -233,6 +274,104 @@ class cpu (pyglet.window.Window): # the start of the class =====================
                     self.gpio[0xf] = 0
             row += 1
         self.should_draw = True
+
+    def _EZZZ(self):
+        extracted_op = self.opcode & 0xf00f
+        try:
+            self.funcmap[extracted_op]()
+        except:
+            print "Unknown instruction: %X" % self.opcode
+    
+    def _EZZE(self):
+        log("Skips the next instruction if the key stored in VX is pressed.")
+        key = self.gpio[self.vx] & 0xf
+        if self.key_inputs[key] == 1:
+            self.pc += 2
+      
+    def _EZZ1(self):
+        log("Skips the next instruction if the key stored in VX isn't pressed.")
+        key = self.gpio[self.vx] & 0xf
+        if self.key_inputs[key] == 0:
+            self.pc += 2
+        
+    def _FZZZ(self):
+        extracted_op = self.opcode & 0xf0ff
+        try:
+            self.funcmap[extracted_op]()
+        except:
+            print "Unknown instruction: %X" % self.opcode
+    
+    def _FZ07(self):
+        log("Sets VX to the value of the delay timer.")
+        self.gpio[self.vx] = self.delay_timer
+    
+    def _FZ0A(self):
+        log("A key press is awaited, and then stored in VX.")
+        ret = self.get_key()
+        if ret >= 0:
+            self.gpio[self.vx] = ret
+        else:
+            self.pc -= 2
+      
+    def _FZ15(self):
+        log("Sets the delay timer to VX.")
+        self.delay_timer = self.gpio[self.vx]
+    
+    def _FZ18(self):
+        log("Sets the sound timer to VX.")
+        self.sound_timer = self.gpio[self.vx]
+    
+    def _FZ1E(self):
+        log("Adds VX to I. if overflow, vf = 1")
+        self.index += self.gpio[self.vx]
+        if self.index > 0xfff:
+            self.gpio[0xf] = 1
+            self.index &= 0xfff
+        else:
+            self.gpio[0xf] = 0
+      
+    def _FZ29(self):
+        log("Set index to point to a character")
+        # Sets I to the location of the sprite for the character in VX.
+        # Characters 0-F (in hexadecimal) are represented by a 4x5 font.
+        self.index = (5*(self.gpio[self.vx])) & 0xfff
+    
+    def _FZ33(self):
+        log("Store a number as BCD")
+        # Stores the Binary-coded decimal representation of VX, with the
+        # most significant of three digits at the address in I, the middle
+        # digit at I plus 1, and the least significant digit at I plus 2.
+        self.memory[self.index]   = self.gpio[self.vx] / 100
+        self.memory[self.index+1] = (self.gpio[self.vx] % 100) / 10
+        self.memory[self.index+2] = self.gpio[self.vx] % 10
+    
+    def _FZ55(self):
+        log("Stores V0 to VX in memory starting at address I.")
+        i = 0
+        while i <= self.vx:
+            self.memory[self.index + i] = self.gpio[i]
+            i += 1
+        self.index += (self.vx) + 1
+    
+    def _FZ65(self):
+        log("Fills V0 to VX with values from memory starting at address I.")
+        i = 0
+        while i <= self.vx:
+            self.gpio[i] = self.memory[self.index + i]
+            i += 1
+        self.index += (self.vx) + 1
+    # ========================================================== end instructions ============================ \ / =====================================
+    # ======================================================================================================== / \ ====================================
+  
+
+
+
+
+
+
+
+
+
 
 
     # the actual draw function
@@ -293,5 +432,35 @@ class cpu (pyglet.window.Window): # the start of the class =====================
                         0x3000: self._3ZZZ,
                         0x4000: self._4ZZZ,
                         0x5000: self._5ZZZ,
+                        0x6000: self._6ZZZ,
+                        0x7000: self._7ZZZ,
+                        0x8000: self._8ZZZ,
+                        0x8FF0: self._8ZZ0,
+                        0x8FF1: self._8ZZ1,
+                        0x8FF2: self._8ZZ2,
+                        0x8FF3: self._8ZZ3,
+                        0x8FF4: self._8ZZ4,
+                        0x8FF5: self._8ZZ5,
+                        0x8FF6: self._8ZZ6,
+                        0x8FF7: self._8ZZ7,
+                        0x8FFE: self._8ZZE,
+                        0x9000: self._9ZZZ,
+                        0xA000: self._AZZZ,
+                        0xB000: self._BZZZ,
+                        0xC000: self._CZZZ,
+                        0xD000: self._DZZZ,
+                        0xE000: self._EZZZ,
+                        0xE00E: self._EZZE,
+                        0xE001: self._EZZ1,
+                        0xF000: self._FZZZ,
+                        0xF007: self._FZ07,
+                        0xF00A: self._FZ0A,
+                        0xF015: self._FZ15,
+                        0xF018: self._FZ18,
+                        0xF01E: self._FZ1E,
+                        0xF029: self._FZ29,
+                        0xF033: self._FZ33,
+                        0xF055: self._FZ55,
+                        0xF065: self._FZ65
         }
 
