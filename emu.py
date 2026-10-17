@@ -36,8 +36,59 @@ def log(str):
     if logging == True:
         print(str)
 
-class cpu (pyglet.window.Window): # the start of the class ===============================================
+class cpu (pyglet.window.Window): # ================================= the start of the class ===============================================
+
+    memory = [0]*4096 # max 4096
+    gpio = [0]*16 # max 16
+    display_buffer = [0]*32*64 # 64*32
+    stack = []
+    key_inputs = [0]*16
+    fonts = [0xF0, 0x90, 0x90, 0x90, 0xF0, # 0
+            0x20, 0x60, 0x20, 0x20, 0x70, # 1
+            0xF0, 0x10, 0xF0, 0x80, 0xF0, # 2
+            0xF0, 0x10, 0xF0, 0x10, 0xF0, # 3
+            0x90, 0x90, 0xF0, 0x10, 0x10, # 4
+            0xF0, 0x80, 0xF0, 0x10, 0xF0, # 5
+            0xF0, 0x80, 0xF0, 0x90, 0xF0, # 6
+            0xF0, 0x10, 0x20, 0x40, 0x40, # 7
+            0xF0, 0x90, 0xF0, 0x90, 0xF0, # 8
+            0xF0, 0x90, 0xF0, 0x10, 0xF0, # 9
+            0xF0, 0x90, 0xF0, 0x90, 0x90, # A
+            0xE0, 0x90, 0xE0, 0x90, 0xE0, # B
+            0xF0, 0x80, 0x80, 0x80, 0xF0, # C
+            0xE0, 0x90, 0x90, 0x90, 0xE0, # D
+            0xF0, 0x80, 0xF0, 0x80, 0xF0, # E
+            0xF0, 0x80, 0xF0, 0x80, 0x80  # F
+            ]
+  
+    opcode = 0
+    index = 0
+    pc = 0
+  
+    delay_timer = 0
+    sound_timer = 0
     
+    should_draw = False
+    key_wait = False
+  
+    pixel = pyglet.resource.image('pixel.png') # pseudo-pixelwise drawing with 10x10 boxes
+    buzz = pyglet.resource.media('buzz.wav', streaming=False)
+
+    # "pixel" buffer
+    batch = pyglet.graphics.Batch()
+    sprites = []
+    for i in range(0,2048):
+        sprites.append(pyglet.sprite.Sprite(pixel,batch=batch))
+  
+    # instruction functions
+    funcmap = None # store op <-> method mappings here
+    vx = 0 # store register numbers here for op method access
+    vy = 0
+
+
+
+
+
 
     def initialise(self):
         self.clear()
@@ -74,7 +125,7 @@ class cpu (pyglet.window.Window): # the start of the class =====================
         binary = open(rom_path, "rb").read()
         i=0
         while i<len(binary):
-            self.memory[i+0x200] = binary
+            self.memory[i+0x200] = binary[i]
             i+=1    
 
 
@@ -239,7 +290,7 @@ class cpu (pyglet.window.Window): # the start of the class =====================
 
     # BZZZ
     def _BZZZ(self):
-        self.pc = (self.opcode & 0xfff) + self.gpio[self.0]
+        self.pc = (self.opcode & 0xfff) + self.gpio[0]
 
     # CZZZ
     def _CZZZ(self):
@@ -280,7 +331,7 @@ class cpu (pyglet.window.Window): # the start of the class =====================
         try:
             self.funcmap[extracted_op]()
         except:
-            print "Unknown instruction: %X" % self.opcode
+            print ("Unknown instruction: %X" % self.opcode)
     
     def _EZZE(self):
         log("Skips the next instruction if the key stored in VX is pressed.")
@@ -299,7 +350,7 @@ class cpu (pyglet.window.Window): # the start of the class =====================
         try:
             self.funcmap[extracted_op]()
         except:
-            print "Unknown instruction: %X" % self.opcode
+            print ("Unknown instruction: %X" % self.opcode)
     
     def _FZ07(self):
         log("Sets VX to the value of the delay timer.")
@@ -360,6 +411,8 @@ class cpu (pyglet.window.Window): # the start of the class =====================
             self.gpio[i] = self.memory[self.index + i]
             i += 1
         self.index += (self.vx) + 1
+
+
     # ========================================================== end instructions ============================ \ / =====================================
     # ======================================================================================================== / \ ====================================
   
@@ -393,7 +446,13 @@ class cpu (pyglet.window.Window): # the start of the class =====================
 
 
 
-
+    def get_key(self):
+        i = 0
+        while i < 16:
+            if self.key_inputs[i] == 1:
+                return i
+            i += 1
+        return -1
 
 
     def on_key_press(self, symbol, modifiers):
@@ -464,3 +523,37 @@ class cpu (pyglet.window.Window): # the start of the class =====================
                         0xF065: self._FZ65
         }
 
+
+
+
+
+    def main(self):
+        # Determine the ROM path: use CLI argument if provided, otherwise fallback to games/PONG
+        if len(sys.argv) > 1:
+            rom_path = sys.argv[1]
+        else:
+            rom_path = r"games/PONG"
+
+        # Verify the file exists before attempting to read it
+        if not os.path.exists(rom_path):
+            print(f"Error: ROM file not found at '{rom_path}'. Check your working directory or file extension.")
+            return
+
+        self.initialise()
+        self.load_Rom(rom_path)
+
+        while not self.has_exit:
+            self.dispatch_events() 
+            self.cycle()
+            self.draw()
+
+
+# begin emulating!
+if len(sys.argv) == 3:
+    if sys.argv[2] == "log":
+        logging = True
+
+      
+chip8emu = cpu(640, 320)
+chip8emu.main()
+log("... done.")
