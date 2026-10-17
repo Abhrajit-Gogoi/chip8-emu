@@ -144,7 +144,7 @@ class cpu (pyglet.window.Window): # ================================= the start 
         #after:
         self.pc +=2
 
-        extracted_op = self.opcode & 0xf00
+        extracted_op = self.opcode & 0xf000
         try:
             self.funcmap[extracted_op]() # this calls the associated method
         except:
@@ -220,7 +220,7 @@ class cpu (pyglet.window.Window): # ================================= the start 
 
     # vx = vy 
     def _8ZZZ(self):
-        extracted_op = self.opcode & 0xf00f
+        extracted_op = (self.opcode & 0xf00f) | 0x0ff0
         try:
             self.funcmap[extracted_op]()
         except:
@@ -383,17 +383,16 @@ class cpu (pyglet.window.Window): # ================================= the start 
       
     def _FZ29(self):
         log("Set index to point to a character")
-        # Sets I to the location of the sprite for the character in VX.
-        # Characters 0-F (in hexadecimal) are represented by a 4x5 font.
-        self.index = (5*(self.gpio[self.vx])) & 0xfff
+        char = int(self.gpio[self.vx]) & 0x0F
+        self.index = (5 * char) & 0xfff
     
     def _FZ33(self):
         log("Store a number as BCD")
         # Stores the Binary-coded decimal representation of VX, with the
         # most significant of three digits at the address in I, the middle
         # digit at I plus 1, and the least significant digit at I plus 2.
-        self.memory[self.index]   = self.gpio[self.vx] / 100
-        self.memory[self.index+1] = (self.gpio[self.vx] % 100) / 10
+        self.memory[self.index]   = self.gpio[self.vx] // 100
+        self.memory[self.index+1] = (self.gpio[self.vx] % 100) // 10
         self.memory[self.index+2] = self.gpio[self.vx] % 10
     
     def _FZ55(self):
@@ -546,6 +545,8 @@ class cpu (pyglet.window.Window): # ================================= the start 
             self.dispatch_events() 
             self.cycle()
             self.draw()
+            time.sleep(0.001)
+        
 
 
 # begin emulating!
