@@ -23,8 +23,22 @@ CHIP-8 is an interpreted programming language and virtual machine created in the
 
 https://omokute.blogspot.com/ 
 
+## games available:
+- Pong
+    controls:
+    1 and Q keys for left and 4 and R keys for the right pong thingy to move (also has bugs) 
+- Tictactoe
+    controls:
+    The grid mapped with [1,2,3][q,w,e][a,s,d]   (also has bugs)
+- Tetris (does not work currently due to a bug)
+
 ## how to run:
 
 - step-1: clone the repository:
-    `git clone https://github.com/Abhrajit-Gogoi/chip8-emu`
+    ```git clone https://github.com/Abhrajit-Gogoi/chip8-emu```
+- run the `emu.py` with the desired game as the parameter. eg
+```emu.py games/PONG```
+
+### GAMES
+TAKEN FROM ARCHIVE.ORG
     
