@@ -26,6 +26,5 @@ https://omokute.blogspot.com/
 ## how to run:
 
 - step-1: clone the repository:
-    '''
-    git clone https://github.com/Abhrajit-Gogoi/chip8-emu
-    '''
+    `git clone https://github.com/Abhrajit-Gogoi/chip8-emu`
+    
