@@ -253,18 +253,16 @@ class cpu (pyglet.window.Window): # ================================= the start 
     # 8nn5
     def _8ZZ5(self):
         if self.gpio[self.vx] > self.gpio[self.vy]:
-            self.gpio[0xf] = 0
-        else:
             self.gpio[0xf] = 1
+        else:
+            self.gpio[0xf] = 0
         self.gpio[self.vx] = 0xff & (self.gpio[self.vx] - self.gpio[self.vy])
 
     # 8nn6
     def _8ZZ6(self):
-        if self.gpio[self.vx] & 0x1 == 1:
-            self.gpio[0xf] =1
-        else:
-            self.gpio[self.vx] = 0
-        self.gpio[self.vx] = self.gpio[self.vx] >> 1
+        log("SHR Vx")
+        self.gpio[0xf] = self.gpio[self.vx] & 0x1
+        self.gpio[self.vx] = (self.gpio[self.vx] >> 1) & 0xff
 
     # 8xy7
     def _8ZZ7(self):
@@ -306,24 +304,22 @@ class cpu (pyglet.window.Window): # ================================= the start 
         x = self.gpio[self.vx] & 0xff
         y = self.gpio[self.vy] & 0xff
         height = self.opcode & 0x000f
-        row = 0
-        while row < height:
-            curr_row = self.memory[row + self.index]
-            pixel_offset = 0
-            while pixel_offset < 8:
-                loc = x + pixel_offset + ((y + row) * 64)
-                pixel_offset += 1
-                if (y + row) >= 32 or (x + pixel_offset - 1) >= 64:
-                    # ignore pixels outside the screen
-                    continue
-                mask = 1 << 8-pixel_offset
-                curr_pixel = (curr_row & mask) >> (8-pixel_offset)
-                self.display_buffer[loc] ^= curr_pixel
-                if self.display_buffer[loc] == 0:
-                    self.gpio[0xf] = 1
-                else:
-                    self.gpio[0xf] = 0
-            row += 1
+
+        for row in range(height):
+            curr_row = self.memory[self.index + row]
+            for pixel_offset in range(8):
+                mask = 0x80 >> pixel_offset
+                curr_pixel = 1 if (curr_row & mask) else 0
+
+                target_x = (x + pixel_offset) % 64
+                target_y = (y + row) % 32
+                loc = target_x + (target_y * 64)
+
+                if curr_pixel == 1:
+                    if self.display_buffer[loc] == 1:
+                        self.gpio[0xf] = 1  # Collision detected
+                    self.display_buffer[loc] ^= 1
+
         self.should_draw = True
 
     def _EZZZ(self):
