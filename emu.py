@@ -7,6 +7,22 @@ import random
 import sys
 import time
 
+
+
+def resource_path(relative_path):
+    """Get absolute path to resource, works for development and PyInstaller."""
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+
+
+# Asset paths updated for PyInstaller compatibility
+SOUND_PATH = resource_path("buzz.wav")
+IMAGE_PATH = resource_path("pixel.png")
+GAMES_DIR = resource_path("games")
+
 from pyglet.sprite import Sprite
 
 KEY_MAP = {pyglet.window.key._1: 0x1,
@@ -71,8 +87,8 @@ class cpu (pyglet.window.Window): # ================================= the start 
     should_draw = False
     key_wait = False
   
-    pixel = pyglet.resource.image('pixel.png') # pseudo-pixelwise drawing with 10x10 boxes
-    buzz = pyglet.resource.media('buzz.wav', streaming=False)
+    pixel = pyglet.resource.image(IMAGE_PATH) # pseudo-pixelwise drawing with 10x10 boxes
+    buzz = pyglet.resource.media(SOUND_PATH, streaming=False)
 
     # "pixel" buffer
     batch = pyglet.graphics.Batch()
@@ -527,7 +543,7 @@ class cpu (pyglet.window.Window): # ================================= the start 
         if len(sys.argv) > 1:
             rom_path = sys.argv[1]
         else:
-            rom_path = r"games/PONG"
+            rom_path = os.path.join(GAMES_DIR, "PONG")
 
         # Verify the file exists before attempting to read it
         if not os.path.exists(rom_path):
