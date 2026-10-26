@@ -7,8 +7,6 @@ import random
 import sys
 import time
 
-
-
 def resource_path(relative_path):
     """Get absolute path to resource, works for development and PyInstaller."""
     try:
@@ -16,12 +14,6 @@ def resource_path(relative_path):
     except Exception:
         base_path = os.path.abspath(".")
     return os.path.join(base_path, relative_path)
-
-
-# Asset paths updated for PyInstaller compatibility
-SOUND_PATH = resource_path("buzz.wav")
-IMAGE_PATH = resource_path("pixel.png")
-GAMES_DIR = resource_path("games")
 
 from pyglet.sprite import Sprite
 
@@ -76,26 +68,24 @@ class cpu (pyglet.window.Window): # ================================= the start 
             0xF0, 0x80, 0xF0, 0x80, 0xF0, # E
             0xF0, 0x80, 0xF0, 0x80, 0x80  # F
             ]
-  
+   
     opcode = 0
     index = 0
     pc = 0
-  
+   
     delay_timer = 0
     sound_timer = 0
     
     should_draw = False
     key_wait = False
-  
-    pixel = pyglet.resource.image(IMAGE_PATH) # pseudo-pixelwise drawing with 10x10 boxes
-    buzz = pyglet.resource.media(SOUND_PATH, streaming=False)
+
+    pixel = None
+    buzz = None
 
     # "pixel" buffer
-    batch = pyglet.graphics.Batch()
-    sprites = []
-    for i in range(0,2048):
-        sprites.append(pyglet.sprite.Sprite(pixel,batch=batch))
-  
+    batch = None
+    sprites = None
+
     # instruction functions
     funcmap = None # store op <-> method mappings here
     vx = 0 # store register numbers here for op method access
@@ -494,6 +484,18 @@ class cpu (pyglet.window.Window): # ================================= the start 
     
     def __init__(self, *args, **kwargs):
         super(cpu, self).__init__(*args, **kwargs)
+        
+        base_dir = resource_path('.').replace('\\', '/')
+        games_dir = resource_path('games').replace('\\', '/')
+        pyglet.resource.path = [base_dir, games_dir]
+        pyglet.resource.reindex()
+        
+        self.pixel = pyglet.resource.image("pixel.png")
+        self.buzz = pyglet.resource.media("buzz.wav", streaming=False)
+        
+        self.batch = pyglet.graphics.Batch()
+        self.sprites = [pyglet.sprite.Sprite(self.pixel, batch=self.batch) for _ in range(2048)]
+        
         self.funcmap = {0x0000: self._0ZZZ,
                         0x00e0: self._0ZZ0,
                         0x00ee: self._0ZZE,
@@ -542,8 +544,14 @@ class cpu (pyglet.window.Window): # ================================= the start 
         # Determine the ROM path: use CLI argument if provided, otherwise fallback to games/PONG
         if len(sys.argv) > 1:
             rom_path = sys.argv[1]
+            # If relative path doesn't exist, try bundled games directory
+            if not os.path.exists(rom_path):
+                bundled_games = resource_path("games")
+                candidate = os.path.join(bundled_games, os.path.basename(rom_path))
+                if os.path.exists(candidate):
+                    rom_path = candidate
         else:
-            rom_path = os.path.join(GAMES_DIR, "PONG")
+            rom_path = os.path.join(resource_path("games"), "PONG")
 
         # Verify the file exists before attempting to read it
         if not os.path.exists(rom_path):
